@@ -34,7 +34,7 @@ app.use(helmet({
     useDefaults: true,
     directives: {
       "default-src": ["'self'"],
-      "script-src": ["'self'"],
+      "script-src": ["'self'", "'unsafe-inline'"],
       "style-src": ["'self'", "'unsafe-inline'"],
       "img-src": ["'self'", 'data:'],
       "connect-src": ["'self'"],
@@ -64,7 +64,7 @@ app.get('/api/health', (req, res) => {
 
 // Rate limits
 const chatLimiter = rateLimit({ windowMs: 60 * 1000, max: 60, standardHeaders: true, legacyHeaders: false });
-const syncLimiter = rateLimit({ windowMs: 60 * 1000, max: 2, standardHeaders: true, legacyHeaders: false });
+const syncLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false });
 
 // API Routes
 app.use('/api/chat', chatLimiter, chatRouter);
