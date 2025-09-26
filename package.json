@@ -1,0 +1,27 @@
+{
+  "name": "ralphmagchatbot",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "node server/index.js",
+    "start": "node server/index.js",
+    "init-db": "node server/scripts/initDb.js"
+  },
+  "dependencies": {
+    "anthropic": "^0.25.1",
+    "better-sqlite3": "^9.6.0",
+    "envalid": "^8.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "googleapis": "^141.0.0",
+    "helmet": "^7.1.0",
+    "openai": "^4.58.1",
+    "pdf-parse": "^1.1.1",
+    "p-limit": "^5.0.0",
+    "pino": "^9.4.0"
+  }
+}

@@ -1,0 +1,42 @@
+version: "3.9"
+services:
+  ralphmagchatbot:
+    build: .
+    image: ralphmagchatbot:latest
+    container_name: ralphmagchatbot
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-OPENAI}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENAI_EMBEDDING_MODEL=${OPENAI_EMBEDDING_MODEL:-text-embedding-3-large}
+      - VOYAGE_API_KEY=${VOYAGE_API_KEY}
+      - VOYAGE_MODEL=${VOYAGE_MODEL:-voyage-3}
+      - GOOGLE_DRIVE_FOLDER_IDS=${GOOGLE_DRIVE_FOLDER_IDS}
+      - CHUNK_SIZE_CHARS=${CHUNK_SIZE_CHARS:-1500}
+      - CHUNK_OVERLAP_CHARS=${CHUNK_OVERLAP_CHARS:-200}
+      - RETRIEVAL_TOP_K=${RETRIEVAL_TOP_K:-8}
+      - GOOGLE_OAUTH_CREDENTIALS=/app/credentials/google-oauth.json
+      - GOOGLE_OAUTH_TOKEN=/app/credentials/google-token.json
+      - CORS_ORIGIN=${CORS_ORIGIN:-http://localhost:3000}
+      - ADMIN_USER=${ADMIN_USER:-}
+      - ADMIN_PASS=${ADMIN_PASS:-}
+    volumes:
+      - ./data:/app/data
+      - ./credentials:/app/credentials
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/api/health',(r)=>{process.exit(r.statusCode===200?0:1)})"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          memory: 512M
