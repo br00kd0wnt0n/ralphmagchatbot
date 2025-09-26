@@ -3,8 +3,8 @@ WORKDIR /app
 
 RUN apk add --no-cache python3 make g++
 
-COPY package.json ./
-RUN npm install --omit=dev --no-audit --no-fund --package-lock=false
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --no-audit --no-fund
 
 FROM node:18-alpine
 WORKDIR /app
