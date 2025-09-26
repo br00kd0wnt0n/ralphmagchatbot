@@ -104,28 +104,35 @@ Railway (GitHub + Docker)
    - If the repo root contains multiple projects, set the “Root Directory” to `ralphmagchatbot` so Railway uses the Dockerfile there.
    - Railway autodetects Dockerfile; otherwise, choose Docker as the builder.
 3) Volumes (persistence):
-   - Add a Volume and mount it to `/app/data` for SQLite
-   - Add another Volume (or use the same) and mount it to `/app/credentials` for OAuth tokens
+   - **Single Volume (Free Tier):** Add a Volume mounted to `/app/credentials`
+   - **Two Volumes (Pro):** Mount volumes to both `/app/data` (SQLite) and `/app/credentials` (OAuth)
 4) Environment variables:
    - `ANTHROPIC_API_KEY`
    - `EMBEDDINGS_PROVIDER=OPENAI` (or `VOYAGE`)
    - `OPENAI_API_KEY` (if using OpenAI)
    - `GOOGLE_DRIVE_FOLDER_IDS=<id1,id2>`
+   - `ADMIN_USER` and `ADMIN_PASS` (for sync endpoint auth)
+   - `CORS_ORIGIN=https://<your-service>.up.railway.app`
+   - **Single Volume:** Add `DB_DIR=/app/credentials` to store database with OAuth files
    - Optional tuning: `RETRIEVAL_TOP_K`, `CHUNK_SIZE_CHARS`, `CHUNK_OVERLAP_CHARS`
-   - The container defaults for OAuth paths are `/app/credentials/google-oauth.json` and `/app/credentials/google-token.json`.
 5) Provide OAuth credentials:
-   - In Railway, create a Secret File or otherwise place your Google OAuth JSON into the mounted volume path `/app/credentials/google-oauth.json` (you can upload via shell or initial deploy artifact).
+   - Upload via Railway Shell: Click "Shell" in your service → `cat > /app/credentials/google-oauth.json` → paste JSON → Ctrl+D
+   - Or use Railway's file upload feature to add the file to the volume
 6) Deploy and authorize Google:
-   - Open your Railway service URL → “Connect Google Drive” to start the consent flow.
-   - If you receive a code (Desktop OAuth), send it to the server:
-     - `curl -X POST https://<railway-url>/api/sync/oauth2/callback -H 'content-type: application/json' -d '{"code":"<paste_code>"}'`
-   - This writes `/app/credentials/google-token.json` in the volume.
+   - Open your Railway service URL
+   - Click "Set Admin Auth" and enter your ADMIN_USER/ADMIN_PASS
+   - Click "Connect Google Drive" to start the consent flow
+   - If you receive a code (Desktop OAuth), send it with Basic Auth:
+     - `curl -X POST https://<railway-url>/api/sync/oauth2/callback -H "authorization: Basic $(printf 'user:pass' | base64)" -H 'content-type: application/json' -d '{"code":"<paste_code>"}'`
+   - This writes `/app/credentials/google-token.json` in the volume
 7) Sync:
    - Click “Sync Google Drive” in the UI or `curl -X POST https://<railway-url>/api/sync/google-drive`
 
 Notes for Railway
-- Ensure both `/app/data` and `/app/credentials` are mounted as volumes; otherwise data and tokens won’t persist across deploys.
-- Railway sets `PORT` automatically; the Dockerfile listens on `PORT` (default 3000) and exposes 3000.
+- **Free Tier (1 volume):** Mount `/app/credentials` and set `DB_DIR=/app/credentials` env var
+- **Pro Tier (2 volumes):** Mount both `/app/data` and `/app/credentials` separately
+- Railway sets `PORT` automatically; the Dockerfile listens on `PORT` (default 3000) and exposes 3000
+- Upload google-oauth.json to the volume via Railway Shell after first deploy
 
 Next Steps (Recommended Enhancements)
 -------------------------------------
