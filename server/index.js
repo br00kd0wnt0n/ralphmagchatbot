@@ -10,6 +10,8 @@ const { cleanEnv, str, port, url } = require('envalid');
 const { ensureDb, DB_PATH } = require('./services/store');
 const chatRouter = require('./routes/chat');
 const syncRouter = require('./routes/sync');
+const fs = require('fs');
+const pathLib = require('path');
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -56,6 +58,45 @@ app.use(express.urlencoded({ extended: true }));
 // Static web UI
 app.use('/', express.static(path.join(__dirname, '..', 'public')));
 
+// Config endpoint to inform UI of mode
+const CONTENT_SOURCE = (process.env.CONTENT_SOURCE || 'PDFS').toUpperCase();
+const PDFS_DIR = process.env.PDFS_DIR || pathLib.join(__dirname, '..', '..', 'data', 'pdfs');
+const COVERS_DIR = process.env.COVERS_DIR || pathLib.join(__dirname, '..', '..', 'data', 'covers');
+app.get('/api/config', (req, res) => {
+  res.json({ contentSource: CONTENT_SOURCE, pdfsDir: PDFS_DIR, pdfBaseUrl: process.env.PDF_BASE_URL || null, coversDir: COVERS_DIR });
+});
+
+// Serve local PDFs in PDFS mode
+if (CONTENT_SOURCE === 'PDFS') {
+  app.use('/pdfs', express.static(PDFS_DIR));
+  app.use('/covers', express.static(COVERS_DIR));
+
+  // Simple covers API: list cover images and link to matching PDFs by basename
+  app.get('/api/covers', (req, res) => {
+    try {
+      if (!fs.existsSync(COVERS_DIR)) return res.json({ items: [] });
+      const files = fs.readdirSync(COVERS_DIR).filter(f => /\.(png|jpe?g|webp)$/i.test(f));
+      const baseUrl = process.env.PDF_BASE_URL ? String(process.env.PDF_BASE_URL).replace(/\/$/, '') : null;
+      const items = files.slice(0, 12).map(name => {
+        const base = name.replace(/\.[^.]+$/, '');
+        // Try exact match in PDFs_DIR
+        let pdfRel = null;
+        const candidates = [base + '.pdf', base.replace(/\s+/g, '_') + '.pdf', base.replace(/\s+/g, '') + '.pdf'];
+        for (const cand of candidates) {
+          const p = pathLib.join(PDFS_DIR, cand);
+          if (fs.existsSync(p)) { pdfRel = cand; break; }
+        }
+        const coverUrl = '/covers/' + encodeURIComponent(name);
+        const pdfUrl = pdfRel ? (baseUrl ? `${baseUrl}/${encodeURIComponent(pdfRel)}` : `/pdfs/${encodeURIComponent(pdfRel)}`) : null;
+        return { name: base, coverUrl, pdfUrl };
+      });
+      res.json({ items });
+    } catch (e) {
+      res.status(500).json({ error: e.message });
+    }
+  });
+}
+
 // Health
 app.get('/api/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
@@ -67,7 +108,11 @@ const syncLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: t
 
 // API Routes
 app.use('/api/chat', chatLimiter, chatRouter);
-app.use('/api/sync', syncLimiter, syncRouter);
+if (CONTENT_SOURCE === 'GDRIVE') {
+  app.use('/api/sync', syncLimiter, syncRouter);
+} else if (CONTENT_SOURCE === 'PDFS') {
+  app.use('/api/sync-pdfs', syncLimiter, require('./routes/syncPdfs'));
+}
 
 // Ensure DB exists and start server
 ensureDb();

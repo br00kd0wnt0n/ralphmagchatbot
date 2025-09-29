@@ -63,10 +63,17 @@ function ensureDb() {
       chunk_index INTEGER NOT NULL,
       text TEXT NOT NULL,
       embedding TEXT NOT NULL,
+      page INTEGER,
       FOREIGN KEY (doc_id) REFERENCES documents(id) ON DELETE CASCADE
     );
   `);
   db.exec('CREATE INDEX IF NOT EXISTS idx_chunks_doc ON chunks(doc_id);');
+  // Migration: add page column if missing
+  const colsC = db.prepare("PRAGMA table_info(chunks)").all();
+  const hasPage = colsC.some(c => c.name === 'page');
+  if (!hasPage) {
+    db.exec('ALTER TABLE chunks ADD COLUMN page INTEGER');
+  }
 }
 
 function upsertDocument(doc) {
@@ -90,28 +97,30 @@ function upsertDocument(doc) {
 function replaceChunks(docId, chunks) {
   const del = db.prepare('DELETE FROM chunks WHERE doc_id = ?');
   del.run(docId);
-  const insert = db.prepare('INSERT INTO chunks (id, doc_id, chunk_index, text, embedding) VALUES (?, ?, ?, ?, ?)');
+  const insert = db.prepare('INSERT INTO chunks (id, doc_id, chunk_index, text, embedding, page) VALUES (?, ?, ?, ?, ?, ?)');
   const tx = db.transaction((rows) => {
-    for (const r of rows) insert.run(r.id, r.doc_id, r.chunk_index, r.text, JSON.stringify(r.embedding));
+    for (const r of rows) insert.run(r.id, r.doc_id, r.chunk_index, r.text, JSON.stringify(r.embedding), r.page ?? null);
   });
   tx(chunks);
 }
 
 function getAllChunks() {
-  const rows = db.prepare('SELECT c.*, d.title, d.issue, d.page, d.author, d.url, d.source FROM chunks c JOIN documents d ON d.id = c.doc_id').all();
+  const rows = db.prepare('SELECT c.*, d.title, d.issue, d.page as doc_page, d.author, d.url, d.source, d.mime_type FROM chunks c JOIN documents d ON d.id = c.doc_id').all();
   return rows.map((r) => ({
     id: r.id,
     doc_id: r.doc_id,
     chunk_index: r.chunk_index,
     text: r.text,
     embedding: JSON.parse(r.embedding),
+    page: r.page,
     meta: {
       title: r.title,
       issue: r.issue,
-      page: r.page,
+      page: r.doc_page,
       author: r.author,
       url: r.url,
       source: r.source,
+      mime_type: r.mime_type,
     }
   }));
 }

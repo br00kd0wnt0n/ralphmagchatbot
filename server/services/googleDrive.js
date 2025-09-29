@@ -3,6 +3,16 @@ const path = require('path');
 const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 
+function sanitizeTitle(title) {
+  if (!title) return title;
+  let t = String(title);
+  t = t.replace(/\.[^.]+$/, '');
+  t = t.replace(/\b(low\s*res|hi\s*res|lowres|hires|final|draft|copy|export|proof)\b/gi, '');
+  t = t.replace(/\bv\d+\b/gi, '');
+  t = t.replace(/[\-_]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  return t;
+}
+
 function getOAuthClient(withRedirectUri) {
   const credsPath = process.env.GOOGLE_OAUTH_CREDENTIALS || './credentials/google-oauth.json';
   const tokenPath = process.env.GOOGLE_OAUTH_TOKEN || './credentials/google-token.json';
@@ -81,20 +91,31 @@ async function fetchFileText(auth, file) {
     const content = (doc.data.body.content || [])
       .map(b => b.paragraph?.elements?.map(e => e.textRun?.content || '').join('') || '')
       .join('');
-    return content;
+    const title = sanitizeTitle(doc.data.title || file.name);
+    return { text: content, title };
   }
   if (file.mimeType === 'text/plain' || file.mimeType === 'text/markdown') {
     const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
-    return await streamToString(res.data);
+    const text = await streamToString(res.data);
+    return { text };
   }
   if (file.mimeType === 'application/pdf') {
-    // Download PDF and extract text via pdf-parse
+    // Download PDF and extract text via pdf-parse (also collect per-page text)
     const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'stream' });
     const buffer = await streamToBuffer(res.data);
-    const parsed = await pdfParse(buffer);
-    return parsed.text || '';
+    const pages = [];
+    const parsed = await pdfParse(buffer, {
+      pagerender: async (pageData) => {
+        const content = await pageData.getTextContent();
+        const strings = content.items.map(i => i.str);
+        const pageText = strings.join(' ').replace(/\s{2,}/g, ' ').trim();
+        pages.push(pageText);
+        return pageText + '\n';
+      }
+    });
+    return { text: parsed.text || pages.join('\n\n'), pages };
   }
-  return '';
+  return { text: '' };
 }
 
 function parseMetaFromName(name) {
@@ -110,6 +131,7 @@ function parseMetaFromName(name) {
     meta.title = base.slice(0, byIdx).trim();
     meta.author = base.slice(byIdx + 4).trim();
   }
+  meta.title = sanitizeTitle(meta.title);
   return meta;
 }
 

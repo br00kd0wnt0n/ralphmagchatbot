@@ -117,14 +117,17 @@ router.post('/google-drive', async (req, res) => {
         skipped++;
         continue;
       }
-      const text = await fetchFileText(oAuth2Client, file);
+      const fetched = await fetchFileText(oAuth2Client, file);
+      const text = (typeof fetched === 'string') ? fetched : (fetched?.text || '');
+      const pages = (typeof fetched === 'object' && Array.isArray(fetched.pages)) ? fetched.pages : null;
+      const docTitle = (typeof fetched === 'object' && fetched?.title) ? fetched.title : undefined;
       if (!text || !text.trim()) continue;
       const meta = parseMetaFromName(file.name);
       const docId = file.id;
       upsertDocument({
         id: docId,
         source: 'google-drive',
-        title: meta.title,
+        title: docTitle || meta.title,
         issue: meta.issue,
         page: meta.page,
         author: meta.author,
@@ -133,14 +136,24 @@ router.post('/google-drive', async (req, res) => {
         modified_time: file.modifiedTime,
         checksum: file.md5Checksum || null,
       });
-      const chunks = chunkText(text);
-      const embeddings = await getEmbeddings(chunks);
-      const rows = chunks.map((c, i) => ({
+      let chunkTexts;
+      let pagesForChunks;
+      if (file.mimeType === 'application/pdf' && pages && pages.length) {
+        // Create one chunk per page for simpler page mapping
+        chunkTexts = pages;
+        pagesForChunks = pages.map((_, idx) => idx + 1);
+      } else {
+        chunkTexts = chunkText(text);
+        pagesForChunks = chunkTexts.map(() => null);
+      }
+      const embeddings = await getEmbeddings(chunkTexts);
+      const rows = chunkTexts.map((c, i) => ({
         id: randomUUID(),
         doc_id: docId,
         chunk_index: i,
         text: c,
-        embedding: embeddings[i]
+        embedding: embeddings[i],
+        page: pagesForChunks[i]
       }));
       replaceChunks(docId, rows);
       results.push({ id: docId, name: file.name, chunks: rows.length });
