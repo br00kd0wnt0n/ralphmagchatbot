@@ -10,8 +10,26 @@ const { randomUUID } = require('crypto');
 
 const router = express.Router();
 
-// Basic Auth middleware for admin-only endpoints
+// Public web OAuth callback (no admin auth). Use a Web Application OAuth client
+// with redirect URIs pointing here (local + prod). Exchanges code and stores token.
+router.get('/web/callback', async (req, res) => {
+  try {
+    const code = req.query.code;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).send('Missing code');
+    }
+    await storeToken(code);
+    const redirect = '/?drive=connected';
+    res.setHeader('Content-Type', 'text/html');
+    res.end(`<!doctype html><html><body style="font-family:system-ui"><h3>Google Drive connected</h3><p>You can close this window.</p><a href="${redirect}">Back to app</a></body></html>`);
+  } catch (e) {
+    res.status(500).send(`OAuth error: ${e.message}`);
+  }
+});
+
+// Basic Auth middleware for admin-only endpoints (skip web callback)
 router.use((req, res, next) => {
+  if (req.path === '/web/callback') return next();
   const user = process.env.ADMIN_USER || '';
   const pass = process.env.ADMIN_PASS || '';
   const header = req.headers['authorization'] || '';
