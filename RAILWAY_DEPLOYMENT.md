@@ -12,6 +12,7 @@ Set these in Railway dashboard under your project settings:
 CONTENT_SOURCE=PDFS
 PDFS_DIR=./data/pdfs
 COVERS_DIR=./data/covers
+DB_DIR=/app/credentials
 OPENAI_API_KEY=your-openai-api-key
 OPENAI_CHAT_MODEL=gpt-4o
 OPENAI_EMBEDDING_MODEL=text-embedding-3-large
@@ -24,6 +25,10 @@ ADMIN_USER=admin
 ADMIN_PASS=secure-password
 NODE_ENV=production
 ```
+
+Notes:
+- Mount your Railway Volume at `/app/credentials` and keep `DB_DIR=/app/credentials` so the SQLite DB is writable without hiding bundled PDFs/covers.
+- Do not mount a volume at `/app/data` — that path contains the packaged `data/pdfs` and `data/covers` shipped in the image.
 
 ## Deployment Steps
 
@@ -59,8 +64,14 @@ NODE_ENV=production
 - Search functionality with citations
 - Magazine-style chat responses
 
+## Volumes and Static Data
+
+- If you need persistence, add a Railway Volume and set its mount path to `/app/credentials`.
+- The app serves static PDFs from `PDFS_DIR` (default `/app/data/pdfs`) and covers from `COVERS_DIR` (default `/app/data/covers`). These live inside the image and should not be mounted over.
+
 ## Troubleshooting
 
 - If chat returns 400 error: Check that CONTENT_SOURCE=PDFS is set
-- If covers don't show: Verify COVERS_DIR=./data/covers is set
-- If indexing fails: Check OpenAI API key is valid and has credits
+- If covers don't show: Verify `COVERS_DIR=./data/covers` is set and no volume is mounted at `/app/data`.
+- If indexing finds 0 files: You likely mounted a volume at `/app/data`. Move the volume to `/app/credentials` and set `DB_DIR=/app/credentials`.
+- If indexing fails with an error: Check your `OPENAI_API_KEY` is set and has credits.

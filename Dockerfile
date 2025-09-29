@@ -19,7 +19,7 @@ RUN mkdir -p /app/credentials
 
 ENV NODE_ENV=production \
     PORT=3000 \
-    DB_DIR=/app/data \
+    DB_DIR=/app/credentials \
     GOOGLE_OAUTH_CREDENTIALS=/app/credentials/google-oauth.json \
     GOOGLE_OAUTH_TOKEN=/app/credentials/google-token.json
 
