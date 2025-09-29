@@ -30,7 +30,8 @@
       <div style="margin:8px 0; font-size:12px; color:#93c5fd">Admin: <span id="adminStatus">not set</span></div>
       <hr style="border:0;border-top:1px solid #334155;opacity:.4"/>
       <div style="margin:8px 0 6px; font-size:12px; opacity:.85">Step 1: Connect Google Drive</div>
-      <a id="authLink" href="#" target="_blank">Open Google consent</a>
+      <a id="authLink" href="#" target="_blank">Open Google consent (Web)</a>
+      <a id="authLinkInstalled" href="#" target="_blank" style="margin-top:6px">Open Google consent (Desktop/manual)</a>
       <input id="codeInput" placeholder="Paste authorization code" style="width:100%;margin-top:6px;padding:8px;border-radius:6px;border:1px solid #475569;background:#0b1220;color:#e2e8f0" />
       <button id="btnSubmitCode">Submit Code</button>
       <div style="margin:8px 0; font-size:12px; color:#93c5fd">Drive: <span id="driveStatus">not connected</span></div>
@@ -68,6 +69,11 @@
           const j = await r.json();
           authLink.href = j.url;
         } catch (e) { console.error(e); authLink.removeAttribute('href'); }
+        try {
+          const r2 = await fetch('/api/sync/auth-url?flow=installed', { headers: authHeaders() });
+          const j2 = await r2.json();
+          document.getElementById('authLinkInstalled').href = j2.url;
+        } catch (e) { console.error(e); }
       }
       initAuth();
 

@@ -47,10 +47,18 @@ router.use((req, res, next) => {
 
 router.get('/auth-url', (req, res) => {
   try {
-    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
-    const host = req.get('host');
-    const redirect = `${proto}://${host}/api/sync/web/callback`;
-    const url = getAuthUrl(redirect);
+    const flow = (req.query.flow || '').toString();
+    let url;
+    if (flow === 'installed') {
+      // Use redirect URI from the client JSON (Desktop/Installed app)
+      url = getAuthUrl();
+    } else {
+      // Default: Web flow with dynamic redirect back to this host
+      const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+      const host = req.get('host');
+      const redirect = `${proto}://${host}/api/sync/web/callback`;
+      url = getAuthUrl(redirect);
+    }
     res.json({ url });
   } catch (e) {
     res.status(500).json({ error: e.message });
