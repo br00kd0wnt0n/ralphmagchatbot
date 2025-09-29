@@ -30,8 +30,8 @@ const env = cleanEnv(process.env, {
 const app = express();
 const PORT = env.PORT;
 
-// Trust proxy for Railway deployment
-app.set('trust proxy', true);
+// Trust proxy for Railway deployment - trust only first proxy
+app.set('trust proxy', 1);
 
 // Helmet with CSP; can be disabled/relaxed for local debugging
 const disableCsp = String(process.env.DISABLE_CSP || '').toLowerCase() === 'true';
