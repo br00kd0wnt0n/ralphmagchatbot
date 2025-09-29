@@ -18,10 +18,13 @@ router.get('/web/callback', async (req, res) => {
     if (!code || typeof code !== 'string') {
       return res.status(400).send('Missing code');
     }
-    await storeToken(code);
-    const redirect = '/?drive=connected';
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+    const host = req.get('host');
+    const redirect = `${proto}://${host}/api/sync/web/callback`;
+    await storeToken(code, redirect);
+    const back = '/?drive=connected';
     res.setHeader('Content-Type', 'text/html');
-    res.end(`<!doctype html><html><body style="font-family:system-ui"><h3>Google Drive connected</h3><p>You can close this window.</p><a href="${redirect}">Back to app</a></body></html>`);
+    res.end(`<!doctype html><html><body style=\"font-family:system-ui\"><h3>Google Drive connected</h3><p>You can close this window.</p><a href=\"${back}\">Back to app</a></body></html>`);
   } catch (e) {
     res.status(500).send(`OAuth error: ${e.message}`);
   }
@@ -44,7 +47,10 @@ router.use((req, res, next) => {
 
 router.get('/auth-url', (req, res) => {
   try {
-    const url = getAuthUrl();
+    const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0];
+    const host = req.get('host');
+    const redirect = `${proto}://${host}/api/sync/web/callback`;
+    const url = getAuthUrl(redirect);
     res.json({ url });
   } catch (e) {
     res.status(500).json({ error: e.message });

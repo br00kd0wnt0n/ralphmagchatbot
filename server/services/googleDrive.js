@@ -3,7 +3,7 @@ const path = require('path');
 const { google } = require('googleapis');
 const pdfParse = require('pdf-parse');
 
-function getOAuthClient() {
+function getOAuthClient(withRedirectUri) {
   const credsPath = process.env.GOOGLE_OAUTH_CREDENTIALS || './credentials/google-oauth.json';
   const tokenPath = process.env.GOOGLE_OAUTH_TOKEN || './credentials/google-token.json';
 
@@ -17,7 +17,9 @@ function getOAuthClient() {
     throw new Error(`Missing Google OAuth credentials. Set GOOGLE_OAUTH_JSON env var or provide file at ${credsPath}`);
   }
   const { client_secret, client_id, redirect_uris } = creds.installed || creds.web || {};
-  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris && redirect_uris[0]);
+  // Use provided redirect URI (for web flow), otherwise default to first from credentials
+  const chosenRedirect = withRedirectUri || (redirect_uris && redirect_uris[0]);
+  const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, chosenRedirect);
   if (fs.existsSync(tokenPath)) {
     const token = JSON.parse(fs.readFileSync(tokenPath, 'utf-8'));
     oAuth2Client.setCredentials(token);
@@ -25,17 +27,19 @@ function getOAuthClient() {
   return { oAuth2Client, tokenPath };
 }
 
-function getAuthUrl() {
-  const { oAuth2Client } = getOAuthClient();
+function getAuthUrl(redirectUri) {
+  const { oAuth2Client } = getOAuthClient(redirectUri);
   const scopes = [
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/documents.readonly'
   ];
-  return oAuth2Client.generateAuthUrl({ access_type: 'offline', scope: scopes });
+  const opts = { access_type: 'offline', scope: scopes, prompt: 'consent' };
+  if (redirectUri) opts.redirect_uri = redirectUri;
+  return oAuth2Client.generateAuthUrl(opts);
 }
 
-async function storeToken(code) {
-  const { oAuth2Client, tokenPath } = getOAuthClient();
+async function storeToken(code, redirectUri) {
+  const { oAuth2Client, tokenPath } = getOAuthClient(redirectUri);
   const { tokens } = await oAuth2Client.getToken(code);
   fs.mkdirSync(path.dirname(tokenPath), { recursive: true });
   fs.writeFileSync(tokenPath, JSON.stringify(tokens, null, 2), { mode: 0o600 });
