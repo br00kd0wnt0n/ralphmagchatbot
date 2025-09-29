@@ -1,4 +1,6 @@
 const express = require('express');
+const fs = require('fs');
+const path = require('path');
 const { google } = require('googleapis');
 const { getOAuthClient, getAuthUrl, storeToken, listFilesRecursive, fetchFileText, parseMetaFromName } = require('../services/googleDrive');
 const { upsertDocument, replaceChunks, getDocument } = require('../services/store');
@@ -26,6 +28,20 @@ router.get('/auth-url', (req, res) => {
   try {
     const url = getAuthUrl();
     res.json({ url });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+router.get('/status', (req, res) => {
+  try {
+    const credsPath = process.env.GOOGLE_OAUTH_CREDENTIALS || './credentials/google-oauth.json';
+    const tokenPath = process.env.GOOGLE_OAUTH_TOKEN || './credentials/google-token.json';
+    const hasCreds = !!process.env.GOOGLE_OAUTH_JSON || fs.existsSync(credsPath);
+    const hasToken = fs.existsSync(tokenPath);
+    const folderIds = (process.env.GOOGLE_DRIVE_FOLDER_IDS || '').split(',').map(s => s.trim()).filter(Boolean);
+    const canSync = hasToken && folderIds.length > 0;
+    res.json({ admin: true, hasCreds, hasToken, folderIds, canSync });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

@@ -27,9 +27,18 @@
     <div class="sidebar">
       <h1>Ralph Chat</h1>
       <button id="btnSetAuth">Set Admin Auth</button>
-      <button id="btnSync">Sync Google Drive</button>
-      <a id="authLink" href="#" target="_blank">1) Connect Google Drive</a>
-      <small style="display:block;margin-top:8px;opacity:.7">Use the link above to authorize once, then click Sync.</small>
+      <div style="margin:8px 0; font-size:12px; color:#93c5fd">Admin: <span id="adminStatus">not set</span></div>
+      <hr style="border:0;border-top:1px solid #334155;opacity:.4"/>
+      <div style="margin:8px 0 6px; font-size:12px; opacity:.85">Step 1: Connect Google Drive</div>
+      <a id="authLink" href="#" target="_blank">Open Google consent</a>
+      <input id="codeInput" placeholder="Paste authorization code" style="width:100%;margin-top:6px;padding:8px;border-radius:6px;border:1px solid #475569;background:#0b1220;color:#e2e8f0" />
+      <button id="btnSubmitCode">Submit Code</button>
+      <div style="margin:8px 0; font-size:12px; color:#93c5fd">Drive: <span id="driveStatus">not connected</span></div>
+      <div style="margin:4px 0; font-size:12px; color:#93c5fd">Folders: <span id="folderStatus">0 configured</span></div>
+      <hr style="border:0;border-top:1px solid #334155;opacity:.4"/>
+      <div style="margin:8px 0 6px; font-size:12px; opacity:.85">Step 2: Sync</div>
+      <button id="btnSync" disabled>Sync Google Drive</button>
+      <small style="display:block;margin-top:8px;opacity:.7">Authorize once, submit the code, then sync.</small>
       <div style="margin-top:16px;font-size:12px;opacity:.8">Status: <span id="status">Idle</span></div>
     </div>
     <div class="main">
@@ -62,6 +71,32 @@
       }
       initAuth();
 
+      async function refreshStatus() {
+        const adminEl = document.getElementById('adminStatus');
+        const driveEl = document.getElementById('driveStatus');
+        const folderEl = document.getElementById('folderStatus');
+        const syncBtn = document.getElementById('btnSync');
+        try {
+          const r = await fetch('/api/sync/status', { headers: authHeaders() });
+          if (r.status === 401 || r.status === 503) {
+            adminEl.textContent = 'not set';
+            driveEl.textContent = 'unknown (set admin first)';
+            folderEl.textContent = 'unknown';
+            syncBtn.disabled = true;
+            return;
+          }
+          const j = await r.json();
+          adminEl.textContent = 'set';
+          driveEl.textContent = j.hasToken ? 'connected' : 'not connected';
+          folderEl.textContent = j.folderIds && j.folderIds.length ? `${j.folderIds.length} configured` : '0 configured';
+          syncBtn.disabled = !j.canSync;
+        } catch (e) {
+          adminEl.textContent = 'error';
+          syncBtn.disabled = true;
+        }
+      }
+      refreshStatus();
+
       document.getElementById('btnSetAuth').onclick = async () => {
         const u = prompt('Admin username:');
         if (!u) return;
@@ -70,7 +105,25 @@
         adminAuth = btoa(u + ':' + p);
         localStorage.setItem('adminAuth', adminAuth);
         await initAuth();
-        statusEl.textContent = 'Admin auth set';
+        await refreshStatus();
+        statusEl.textContent = 'Admin auth set (saved locally)';
+      };
+
+      document.getElementById('btnSubmitCode').onclick = async () => {
+        const code = document.getElementById('codeInput').value.trim();
+        if (!code) return alert('Paste the authorization code first');
+        statusEl.textContent = 'Submitting code...';
+        try {
+          const r = await fetch('/api/sync/oauth2/callback', { method:'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ code }) });
+          const j = await r.json();
+          if (!r.ok) throw new Error(j.error || 'Auth code failed');
+          statusEl.textContent = 'Drive token saved';
+          document.getElementById('codeInput').value='';
+          await refreshStatus();
+        } catch (e) {
+          statusEl.textContent = 'Failed to save token';
+          alert(e.message);
+        }
       };
 
       document.getElementById('btnSync').onclick = async () => {
@@ -80,7 +133,8 @@
           const j = await r.json();
           if (!r.ok) throw new Error(j.error || 'Sync error');
           const skipped = j.files_skipped ? `, skipped ${j.files_skipped}` : '';
-          statusEl.textContent = `Synced ${j.files_processed} file(s)${skipped}`;
+          statusEl.textContent = `Sync complete: processed ${j.files_processed}${skipped}`;
+          await refreshStatus();
         } catch (e) {
           statusEl.textContent = 'Sync failed';
           alert(e.message);
