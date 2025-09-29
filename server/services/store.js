@@ -2,15 +2,34 @@ const path = require('path');
 const fs = require('fs');
 const Database = require('better-sqlite3');
 
-const DB_DIR = process.env.DB_DIR || path.join(__dirname, '..', '..', 'data');
+const DB_DIR = path.resolve(process.env.DB_DIR || path.join(__dirname, '..', '..', 'data'));
 const DB_PATH = path.join(DB_DIR, 'index.sqlite');
 
 let db;
 
 function ensureDb() {
-  if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+  try {
+    if (!fs.existsSync(DB_DIR)) fs.mkdirSync(DB_DIR, { recursive: true });
+  } catch (e) {
+    throw new Error(`Failed to create DB_DIR at ${DB_DIR}: ${e.message}`);
+  }
+  try {
+    fs.accessSync(DB_DIR, fs.constants.W_OK);
+  } catch (e) {
+    throw new Error(`DB_DIR not writable: ${DB_DIR}. Set DB_DIR to a writable mounted path (e.g., /app/data). Details: ${e.message}`);
+  }
   db = new Database(DB_PATH);
-  db.pragma('journal_mode = WAL');
+  // Tune pragmas with safe fallbacks
+  try { db.pragma(`synchronous = NORMAL`); } catch {}
+  const journal = (process.env.DB_JOURNAL || 'WAL').toUpperCase();
+  try { db.pragma(`journal_mode = ${journal}`); } catch {}
+  // Fallback if WAL not supported on mounted FS
+  try {
+    const mode = db.pragma('journal_mode', { simple: true });
+    if (mode && mode.toString().toUpperCase() !== journal) {
+      db.pragma('journal_mode = DELETE');
+    }
+  } catch {}
   db.exec(`
     CREATE TABLE IF NOT EXISTS documents (
       id TEXT PRIMARY KEY,

@@ -7,7 +7,7 @@ const rateLimit = require('express-rate-limit');
 const pino = require('pino');
 const { cleanEnv, str, port, url } = require('envalid');
 
-const { ensureDb } = require('./services/store');
+const { ensureDb, DB_PATH } = require('./services/store');
 const chatRouter = require('./routes/chat');
 const syncRouter = require('./routes/sync');
 
@@ -74,5 +74,5 @@ app.use('/api/sync', syncLimiter, syncRouter);
 ensureDb();
 
 app.listen(PORT, () => {
-  logger.info({ port: PORT }, '[ralphmagchatbot] listening');
+  logger.info({ port: PORT, dbPath: DB_PATH, dbDir: process.env.DB_DIR || '(default ./data)' }, '[ralphmagchatbot] listening');
 });
