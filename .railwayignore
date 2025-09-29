@@ -1,0 +1,10 @@
+# Railway ignore file - specify files/folders to exclude from deployment
+# DO NOT ignore data directory - we need PDFs and covers
+node_modules/
+.git/
+*.log
+.env.local
+.env.*.local
+.DS_Store
+.vscode/
+.idea/
