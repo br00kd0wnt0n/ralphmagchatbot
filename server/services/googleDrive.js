@@ -6,10 +6,16 @@ const pdfParse = require('pdf-parse');
 function getOAuthClient() {
   const credsPath = process.env.GOOGLE_OAUTH_CREDENTIALS || './credentials/google-oauth.json';
   const tokenPath = process.env.GOOGLE_OAUTH_TOKEN || './credentials/google-token.json';
-  if (!fs.existsSync(credsPath)) {
-    throw new Error(`Missing Google OAuth credentials at ${credsPath}`);
+
+  // Support credentials from env var (for Railway)
+  let creds;
+  if (process.env.GOOGLE_OAUTH_JSON) {
+    creds = JSON.parse(process.env.GOOGLE_OAUTH_JSON);
+  } else if (fs.existsSync(credsPath)) {
+    creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+  } else {
+    throw new Error(`Missing Google OAuth credentials. Set GOOGLE_OAUTH_JSON env var or provide file at ${credsPath}`);
   }
-  const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
   const { client_secret, client_id, redirect_uris } = creds.installed || creds.web || {};
   const oAuth2Client = new google.auth.OAuth2(client_id, client_secret, redirect_uris && redirect_uris[0]);
   if (fs.existsSync(tokenPath)) {
