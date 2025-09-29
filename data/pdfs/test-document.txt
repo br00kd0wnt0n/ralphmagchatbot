@@ -1,0 +1,19 @@
+Test Document for Ralph Magazine Chat
+
+This is a sample document to test the auto-sync functionality.
+
+Fashion and Style:
+Ralph Magazine has always been at the forefront of fashion trends, showcasing innovative designs and emerging designers.
+
+Culture and Arts:
+The magazine explores contemporary culture through the lens of creativity and artistic expression.
+
+Key Topics:
+- Fashion photography
+- Designer interviews
+- Cultural criticism
+- Art installations
+- Music reviews
+- Creative processes
+
+This document will be indexed automatically when the page loads, demonstrating the seamless PDF sync experience.

@@ -3,7 +3,10 @@ npm-debug.log
 .env
 .env.local
 .env.*.local
-data/
+data/*.sqlite
+data/*.sqlite-*
+data/*.db
+data/.DS_Store
 credentials/
 *.sqlite
 *.db
