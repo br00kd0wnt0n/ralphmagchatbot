@@ -10,10 +10,12 @@ FROM node:18-alpine
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
+COPY package.json package-lock.json ./
 COPY server ./server
 COPY public ./public
+COPY data ./data
 
-RUN mkdir -p /app/data /app/credentials
+RUN mkdir -p /app/credentials
 
 ENV NODE_ENV=production \
     PORT=3000 \
