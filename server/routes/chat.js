@@ -13,7 +13,7 @@ router.post('/', async (req, res) => {
 
     // Retrieve
     const all = getAllChunks();
-    if (!all.length) return res.status(400).json({ error: 'Index is empty. Run /api/sync/google-drive first.' });
+    if (!all.length) return res.status(400).json({ error: 'Index is empty. No content has been indexed yet.' });
     const [qEmb] = await getEmbeddings([message]);
 
     // Keyword gating for very short queries to boost precision
