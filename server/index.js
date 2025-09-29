@@ -28,19 +28,18 @@ const env = cleanEnv(process.env, {
 const app = express();
 const PORT = env.PORT;
 
-// Helmet with a simple CSP suited for same-origin app and SSE
-app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      "default-src": ["'self'"],
-      "script-src": ["'self'", "'unsafe-inline'"],
-      "style-src": ["'self'", "'unsafe-inline'"],
-      "img-src": ["'self'", 'data:'],
-      "connect-src": ["'self'"],
-    },
-  },
-}));
+// Helmet with CSP; can be disabled/relaxed for local debugging
+const disableCsp = String(process.env.DISABLE_CSP || '').toLowerCase() === 'true';
+const cspDirectives = {
+  "default-src": ["'self'"],
+  "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://apis.google.com'],
+  "style-src": ["'self'", "'unsafe-inline'"],
+  "img-src": ["'self'", 'data:', 'https:'],
+  "connect-src": ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
+  "frame-src": ['https://accounts.google.com', 'https://oauth2.googleapis.com'],
+  "form-action": ["'self'", 'https://accounts.google.com'],
+};
+app.use(helmet({ contentSecurityPolicy: disableCsp ? false : { useDefaults: true, directives: cspDirectives } }));
 
 // CORS allowlist
 const allowedOrigins = (env.CORS_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
