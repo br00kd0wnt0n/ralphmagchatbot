@@ -86,10 +86,21 @@ router.post('/run', async (req, res) => {
         checksum,
       });
 
-      const chunkTexts = pages.length ? pages : text.split(/\n\n+/);
-      const pageNums = pages.length ? pages.map((_, i) => i + 1) : chunkTexts.map(() => null);
-      const embeddings = await getEmbeddings(chunkTexts);
-      const rows = chunkTexts.map((c, i) => ({
+      // Build chunks: prefer per-page; otherwise split on blank lines
+      const rawChunks = pages.length ? pages : text.split(/\n\n+/);
+      // Normalize: collapse whitespace, trim, and drop empty
+      const chunkTexts = rawChunks
+        .map(c => String(c || '').replace(/\s+/g, ' ').trim())
+        .filter(c => c.length > 0);
+      if (!chunkTexts.length) { continue; }
+
+      // For safety, cap chunk length to avoid API validation errors
+      const MAX_CHARS = parseInt(process.env.CHUNK_SIZE_CHARS || '1500', 10);
+      const capped = chunkTexts.map(c => c.length > MAX_CHARS ? c.slice(0, MAX_CHARS) : c);
+
+      const pageNums = pages.length ? pages.map((_, i) => i + 1) : capped.map(() => null);
+      const embeddings = await getEmbeddings(capped);
+      const rows = capped.map((c, i) => ({
         id: hashString(id + ':' + i),
         doc_id: id,
         chunk_index: i,
@@ -107,4 +118,3 @@ router.post('/run', async (req, res) => {
 });
 
 module.exports = router;
-

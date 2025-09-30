@@ -1452,6 +1452,12 @@
         saveConversation();
       }
 
+      // Helper: safely parse JSON or return text
+      async function safeJson(resp) {
+        const text = await resp.text();
+        try { return JSON.parse(text); } catch (_) { return { __raw: text }; }
+      }
+
       // Auto-sync PDFs function
       async function autoSyncPdfs() {
         const progressBar = document.getElementById('syncProgress');
@@ -1464,7 +1470,7 @@
           statusEl.textContent = 'Checking Issue directory...';
 
           const statusResponse = await fetch('/api/sync-pdfs/status');
-          const statusData = await statusResponse.json();
+          const statusData = await safeJson(statusResponse);
 
           if (statusData.files_detected === 0) {
             loadingText.textContent = 'No Issues found';
@@ -1485,10 +1491,11 @@
           statusEl.textContent = 'Extracting text and generating embeddings...';
 
           const syncResponse = await fetch('/api/sync-pdfs/run', { method: 'POST' });
-          const syncData = await syncResponse.json();
+          const syncData = await safeJson(syncResponse);
 
           if (!syncResponse.ok) {
-            throw new Error(syncData.error || 'Sync failed');
+            const msg = (syncData && syncData.error) || (syncData && syncData.__raw) || `Sync failed (${syncResponse.status})`;
+            throw new Error(msg);
           }
 
           // Step 3: Complete
@@ -1513,7 +1520,7 @@
         } catch (error) {
           console.error('Auto-sync failed:', error);
           loadingText.textContent = 'Sync failed';
-          statusEl.textContent = error.message;
+          statusEl.textContent = error.message || 'Unknown error';
           progressBar.style.width = '100%';
           progressBar.style.background = '#ff6b6b';
 
@@ -1523,7 +1530,7 @@
             if (container) {
               container.innerHTML = `
                 <div class="sync-complete" style="background: rgba(255,107,107,0.2);">
-                  ❌ Sync failed: ${error.message}
+                  ❌ Sync failed: ${error.message || 'Unknown error'}
                   <br><small>Check console for details</small>
                 </div>
               `;
