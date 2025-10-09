@@ -1811,7 +1811,6 @@
       async function showPagePreview(pdfUrl, pageNum) {
         try {
           const container = ensurePreviewContainer();
-          const canvas = document.getElementById('pdfPreviewCanvas');
 
           // Show container with loading state
           container.classList.add('visible');
@@ -1828,21 +1827,24 @@
           // Calculate scale to fit in preview area
           const viewport = page.getViewport({ scale: 1.0 });
           const containerWidth = container.querySelector('.preview-canvas-container').clientWidth - 40;
-          const scale = containerWidth / viewport.width;
+          const scale = Math.min(containerWidth / viewport.width, 1.5); // Cap at 1.5x scale
           const scaledViewport = page.getViewport({ scale });
 
-          // Restore canvas in container
-          container.querySelector('.preview-canvas-container').innerHTML = '<canvas class="preview-canvas" id="pdfPreviewCanvas"></canvas>';
-          const newCanvas = document.getElementById('pdfPreviewCanvas');
-          const newCtx = newCanvas.getContext('2d');
+          // Create canvas element
+          const canvas = document.createElement('canvas');
+          canvas.className = 'preview-canvas';
+          canvas.id = 'pdfPreviewCanvas';
+          canvas.height = scaledViewport.height;
+          canvas.width = scaledViewport.width;
 
-          // Set canvas dimensions
-          newCanvas.height = scaledViewport.height;
-          newCanvas.width = scaledViewport.width;
+          // Replace loading with canvas
+          container.querySelector('.preview-canvas-container').innerHTML = '';
+          container.querySelector('.preview-canvas-container').appendChild(canvas);
 
-          // Render page
+          // Get context and render
+          const ctx = canvas.getContext('2d');
           await page.render({
-            canvasContext: newCtx,
+            canvasContext: ctx,
             viewport: scaledViewport
           }).promise;
 
