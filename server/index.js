@@ -63,8 +63,8 @@ app.use('/', express.static(path.join(__dirname, '..', 'public')));
 
 // Config endpoint to inform UI of mode
 const CONTENT_SOURCE = (process.env.CONTENT_SOURCE || 'PDFS').toUpperCase();
-const PDFS_DIR = process.env.PDFS_DIR || pathLib.join(__dirname, '..', '..', 'data', 'pdfs');
-const COVERS_DIR = process.env.COVERS_DIR || pathLib.join(__dirname, '..', '..', 'data', 'covers');
+const PDFS_DIR = process.env.PDFS_DIR || pathLib.join(__dirname, '..', 'data', 'pdfs');
+const COVERS_DIR = process.env.COVERS_DIR || pathLib.join(__dirname, '..', 'data', 'covers');
 app.get('/api/config', (req, res) => {
   res.json({ contentSource: CONTENT_SOURCE, pdfsDir: PDFS_DIR, pdfBaseUrl: process.env.PDF_BASE_URL || null, coversDir: COVERS_DIR });
 });
@@ -84,7 +84,17 @@ if (CONTENT_SOURCE === 'PDFS') {
         const base = name.replace(/\.[^.]+$/, '');
         // Try exact match in PDFs_DIR
         let pdfRel = null;
-        const candidates = [base + '.pdf', base.replace(/\s+/g, '_') + '.pdf', base.replace(/\s+/g, '') + '.pdf'];
+        const candidates = [
+          base + '.pdf',
+          base.replace(/\s+/g, '_') + '.pdf',
+          base.replace(/\s+/g, '') + '.pdf',
+          // Issue1cover -> Ralph Magazine 1 low res.pdf
+          base.replace(/Issue(\d+)cover/gi, 'Ralph Magazine $1 low res') + '.pdf',
+          // Issue4cover -> Ralph Magazine No4 Visual LR.pdf
+          base.replace(/Issue(\d+)cover/gi, 'Ralph Magazine No$1 Visual LR') + '.pdf',
+          // Issue5cover -> Ralph Magazine No5 Master Design 2025 Compressed.pdf
+          base.replace(/Issue5cover/gi, 'Ralph Magazine No5 Master Design 2025 Compressed') + '.pdf',
+        ];
         for (const cand of candidates) {
           const p = pathLib.join(PDFS_DIR, cand);
           if (fs.existsSync(p)) { pdfRel = cand; break; }

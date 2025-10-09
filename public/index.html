@@ -112,26 +112,23 @@
         flex: 1; /* Takes up all available space, pushing covers to bottom */
       }
 
-      /* Covers row at bottom */
+      /* Covers grid at bottom - 2 rows */
       .covers-row {
-        display: flex;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
         gap: 6px;
         margin-top: auto; /* Auto margin pushes to bottom */
         margin-bottom: 0 !important; /* Consistent with sidebar padding */
         margin-left: 0 !important;
         margin-right: 0 !important;
         padding: 0 !important;
-        justify-content: space-between;
-        flex-wrap: nowrap;
-        height: 100px; /* Fixed height for consistency */
         flex-shrink: 0; /* Prevent shrinking */
         width: 100%;
         box-sizing: border-box;
       }
       .covers-row a {
-        flex: 1;
         display: block;
-        height: 100%; /* Fill the container height */
+        aspect-ratio: 2/3; /* Magazine cover proportions */
         border: none !important;
         outline: none !important;
         text-decoration: none !important;
@@ -143,11 +140,11 @@
         width: 100%;
         height: 100%;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: 6px;
         border: none !important;
         outline: none !important;
         background: rgba(255,255,255,0.2);
-        box-shadow: 0 3px 12px rgba(235, 0, 139, 0.3) !important;
+        box-shadow: 0 2px 8px rgba(235, 0, 139, 0.3) !important;
         transition: transform 0.2s ease, box-shadow 0.2s ease;
         cursor: pointer;
         padding: 0 !important;
@@ -157,7 +154,7 @@
       }
       .cover-thumb:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(235, 0, 139, 0.35) !important;
+        box-shadow: 0 3px 10px rgba(235, 0, 139, 0.4) !important;
       }
 
       .sidebar input {
@@ -1239,7 +1236,7 @@
               autoSyncPdfs();
             }
 
-            // Load covers and render a row of clickable thumbnails
+            // Load covers and render a grid of clickable thumbnails (2 rows x 3 columns)
             try {
               const covers = await fetch('/api/covers').then(r=>r.json());
               if (covers && Array.isArray(covers.items) && covers.items.length) {
@@ -1251,7 +1248,7 @@
 
                 const row = document.createElement('div');
                 row.className = 'covers-row';
-                covers.items.slice(0,3).forEach(item => {
+                covers.items.slice(0,5).forEach(item => {
                   const a = document.createElement('a');
                   a.href = item.pdfUrl || '#';
                   a.target = '_blank';
