@@ -37,12 +37,13 @@ app.set('trust proxy', 1);
 const disableCsp = String(process.env.DISABLE_CSP || '').toLowerCase() === 'true';
 const cspDirectives = {
   "default-src": ["'self'"],
-  "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://apis.google.com'],
+  "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://apis.google.com', 'https://cdnjs.cloudflare.com'],
   "style-src": ["'self'", "'unsafe-inline'"],
   "img-src": ["'self'", 'data:', 'https:'],
   "connect-src": ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
   "frame-src": ['https://accounts.google.com', 'https://oauth2.googleapis.com'],
   "form-action": ["'self'", 'https://accounts.google.com'],
+  "worker-src": ["'self'", 'blob:'],
 };
 app.use(helmet({ contentSecurityPolicy: disableCsp ? false : { useDefaults: true, directives: cspDirectives } }));
 
