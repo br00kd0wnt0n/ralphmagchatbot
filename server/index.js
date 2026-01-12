@@ -95,6 +95,8 @@ if (CONTENT_SOURCE === 'PDFS') {
           base.replace(/Issue(\d+)cover/gi, 'Ralph Magazine No$1 Visual LR') + '.pdf',
           // Issue5cover -> Ralph Magazine No5 Master Design 2025 Compressed.pdf
           base.replace(/Issue5cover/gi, 'Ralph Magazine No5 Master Design 2025 Compressed') + '.pdf',
+          // Issue6cover -> Ralph Magazine No6 Master Design.pdf
+          base.replace(/Issue6cover/gi, 'Ralph Magazine No6 Master Design') + '.pdf',
         ];
         for (const cand of candidates) {
           const p = pathLib.join(PDFS_DIR, cand);
