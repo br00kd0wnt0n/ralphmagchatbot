@@ -38,7 +38,9 @@ const disableCsp = String(process.env.DISABLE_CSP || '').toLowerCase() === 'true
 const cspDirectives = {
   "default-src": ["'self'"],
   "script-src": ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'https://accounts.google.com', 'https://apis.google.com', 'https://cdnjs.cloudflare.com'],
-  "style-src": ["'self'", "'unsafe-inline'"],
+  "style-src": ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+  "font-src": ["'self'", "https://fonts.gstatic.com"],
+  "script-src-attr": ["'unsafe-inline'"],
   "img-src": ["'self'", 'data:', 'https:'],
   "connect-src": ["'self'", 'https://accounts.google.com', 'https://oauth2.googleapis.com', 'https://www.googleapis.com'],
   "frame-src": ['https://accounts.google.com', 'https://oauth2.googleapis.com'],
