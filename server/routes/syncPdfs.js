@@ -4,7 +4,8 @@ const fsp = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 const pdfParse = require('pdf-parse');
-const { upsertDocument, replaceChunks, getDocument } = require('../services/store');
+const { upsertDocument, replaceChunks, getDocument, upsertArticle, upsertInsight, deleteArticlesByDocument, deleteInsightsByDocument } = require('../services/store');
+const { processDocumentInsights } = require('../services/insightsExtractor');
 const { getEmbeddings } = require('../services/embeddings');
 const { parseMetaFromName } = require('../services/googleDrive');
 
@@ -109,7 +110,35 @@ router.post('/run', async (req, res) => {
         page: pageNums[i]
       }));
       replaceChunks(id, rows);
-      processed.push({ id, rel, pages: rows.length });
+
+      // Extract insights (unless disabled)
+      let insightsCount = 0;
+      if (process.env.ENABLE_INSIGHTS !== 'false') {
+        try {
+          // Clear old articles/insights for this document
+          deleteInsightsByDocument(id);
+          deleteArticlesByDocument(id);
+
+          // Prepare pages in format needed by extractor
+          const pagesForExtractor = pages.map((text, i) => ({ page: i + 1, text }));
+          const docMeta = { title: meta.title, issue: meta.issue };
+
+          const result = await processDocumentInsights(id, pagesForExtractor, docMeta);
+
+          // Store articles and insights
+          for (const article of result.articles) {
+            upsertArticle(article);
+          }
+          for (const insight of result.insights) {
+            upsertInsight(insight);
+          }
+          insightsCount = result.insights.length;
+        } catch (err) {
+          console.warn('[syncPdfs] Insight extraction failed for', rel, err.message);
+        }
+      }
+
+      processed.push({ id, rel, pages: rows.length, insights: insightsCount });
     }
     res.json({ ok: true, files_processed: processed.length, files_skipped: skipped, details: processed });
   } catch (e) {

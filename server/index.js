@@ -124,11 +124,18 @@ const syncLimiter = rateLimit({ windowMs: 60 * 1000, max: 20, standardHeaders: t
 
 // API Routes
 app.use('/api/chat', chatLimiter, chatRouter);
+app.use('/api/insights', require('./routes/insights'));
 if (CONTENT_SOURCE === 'GDRIVE') {
   app.use('/api/sync', syncLimiter, syncRouter);
 } else if (CONTENT_SOURCE === 'PDFS') {
   app.use('/api/sync-pdfs', syncLimiter, require('./routes/syncPdfs'));
 }
+
+// Daily Article embed + API
+const dailyArticleRoutes = require('./routes/dailyArticle');
+app.use('/api/daily-article', dailyArticleRoutes.router);
+app.get('/embed/daily-article', dailyArticleRoutes.embedHandler);
+app.get('/admin/daily-articles', dailyArticleRoutes.adminPageHandler);
 
 // Ensure DB exists and start server
 ensureDb();

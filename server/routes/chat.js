@@ -1,5 +1,5 @@
 const express = require('express');
-const { getAllChunks } = require('../services/store');
+const { getAllChunks, getAllInsights } = require('../services/store');
 const { getEmbeddings, cosineSim } = require('../services/embeddings');
 const { getOpenAIClient, getModel } = require('../services/openaiClient');
 
@@ -49,13 +49,36 @@ router.post('/', async (req, res) => {
       const meta = s.meta || {};
       const label = `#${idx + 1}`;
       const cite = [
-        meta.title ? `“${meta.title}”` : undefined,
+        meta.title ? `"${meta.title}"` : undefined,
         meta.author ? `by ${meta.author}` : undefined,
         meta.issue ? `Issue ${meta.issue}` : undefined,
         (s.page || meta.page) ? `p.${s.page || meta.page}` : undefined
       ].filter(Boolean).join(' · ');
       return `[[${label} | ${cite}]]\n${s.text}`;
     }).join('\n\n---\n\n');
+
+    // Fetch relevant insights from the same issues as retrieved chunks
+    const relevantIssues = [...new Set(selected.map(s => s.meta?.issue).filter(Boolean))];
+    let insightsContext = '';
+    let relevantInsights = [];
+    try {
+      const allInsights = getAllInsights({ limit: 50 });
+      // Filter to insights from relevant issues or keyword match
+      const msgLower = message.toLowerCase();
+      relevantInsights = allInsights.filter(ins => {
+        const matchesIssue = relevantIssues.includes(ins.issue);
+        const matchesKeyword = ins.article_title?.toLowerCase().includes(msgLower) ||
+                              ins.insight_text?.toLowerCase().split(' ').some(w => msgLower.includes(w));
+        return matchesIssue || matchesKeyword;
+      }).slice(0, 5);
+
+      if (relevantInsights.length > 0) {
+        insightsContext = `\n\nKEY INSIGHTS from Ralph's archive (reference these when relevant):
+${relevantInsights.map(ins => `- "${ins.insight_text}" (from "${ins.article_title}", Issue ${ins.issue})`).join('\n')}`;
+      }
+    } catch (e) {
+      // Insights not available yet, continue without them
+    }
 
     const systemMessage = `You're Ralph Magazine's AI assistant! You help readers dig into our archive.
 
@@ -75,7 +98,7 @@ Found something! Ralph's explored sustainable fashion from multiple angles.
 
 Keep it engaging and informative. If there's not enough info, suggest what else they might search for.
 
-For follow-up suggestions, add a line like: "For more specifics, try searching: artist interviews, cultural impact discussions, or fashion trends" - these will become clickable search suggestions.`;
+For follow-up suggestions, add a line like: "For more specifics, try searching: artist interviews, cultural impact discussions, or fashion trends" - these will become clickable search suggestions.${insightsContext}`;
 
     const userMessage = `User question: ${message}\n\nContext:\n\n${contextBlocks}`;
 
@@ -152,6 +175,19 @@ For follow-up suggestions, add a line like: "For more specifics, try searching: 
         if (citedIdx.has(i)) cited.push(obj); else also.push(obj);
       });
       res.write(`data: ${JSON.stringify({ type: 'sources', cited, also })}\n\n`);
+
+      // Send relevant insights
+      if (relevantInsights.length > 0) {
+        const insightsPayload = relevantInsights.map(ins => ({
+          article_title: ins.article_title,
+          insight_text: ins.insight_text,
+          issue: ins.issue,
+          category: ins.category,
+          start_page: ins.start_page
+        }));
+        res.write(`data: ${JSON.stringify({ type: 'insights', items: insightsPayload })}\n\n`);
+      }
+
       clearInterval(keepalive);
       res.end();
     } catch (err) {
