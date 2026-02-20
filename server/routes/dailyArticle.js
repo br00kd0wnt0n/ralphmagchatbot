@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getDailyArticle, refreshDailyArticle, previewArticlesForRange } = require('../services/dailyArticle');
+const { getAllArticles } = require('../services/store');
 const pino = require('pino');
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
@@ -311,6 +312,20 @@ router.get('/schedule', (req, res) => {
   } catch (err) {
     logger.error({ error: err.message }, 'Failed to get article schedule');
     res.status(500).json({ error: 'Failed to retrieve schedule' });
+  }
+});
+
+/**
+ * GET /api/daily-article/all-articles
+ * Returns all articles in the database with metadata.
+ */
+router.get('/all-articles', (req, res) => {
+  try {
+    const articles = getAllArticles();
+    res.json({ articles });
+  } catch (err) {
+    logger.error({ error: err.message }, 'Failed to get all articles');
+    res.status(500).json({ error: 'Failed to retrieve articles' });
   }
 });
 
@@ -649,6 +664,26 @@ function renderAdminHtml() {
       <div id="scheduleContainer">
         <div class="loading" id="scheduleLoading"><span class="spinner"></span>Loading schedule...</div>
       </div>
+      <div style="text-align:center;margin-top:16px;">
+        <button class="btn btn-secondary" id="viewAllBtn" onclick="toggleAllArticles()">View All Articles</button>
+      </div>
+    </div>
+
+    <!-- All articles -->
+    <div class="schedule-section" id="allArticlesSection" style="display:none;">
+      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+        <span>All Articles</span>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="issueFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#F0F0F0;font-size:11px;font-family:inherit;">
+            <option value="">All Issues</option>
+          </select>
+          <select id="categoryFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#F0F0F0;font-size:11px;font-family:inherit;">
+            <option value="">All Categories</option>
+          </select>
+          <span id="articleCount" style="font-size:11px;color:#888;"></span>
+        </div>
+      </div>
+      <div id="allArticlesContainer"></div>
     </div>
   </div>
 
@@ -849,6 +884,98 @@ function renderAdminHtml() {
     } catch (e) {
       container.innerHTML = '<div class="loading">Failed to load schedule.</div>';
     }
+  }
+
+  // --- All Articles ---
+  let allArticlesData = [];
+  let allArticlesLoaded = false;
+
+  window.toggleAllArticles = function() {
+    const section = document.getElementById('allArticlesSection');
+    const btn = document.getElementById('viewAllBtn');
+    if (section.style.display === 'none') {
+      section.style.display = 'block';
+      btn.textContent = 'Hide All Articles';
+      if (!allArticlesLoaded) loadAllArticles();
+    } else {
+      section.style.display = 'none';
+      btn.textContent = 'View All Articles';
+    }
+  };
+
+  async function loadAllArticles() {
+    const container = document.getElementById('allArticlesContainer');
+    container.innerHTML = '<div class="loading"><span class="spinner"></span>Loading articles...</div>';
+
+    try {
+      const res = await fetch('/api/daily-article/all-articles');
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json();
+      allArticlesData = data.articles || [];
+      allArticlesLoaded = true;
+      populateFilters();
+      renderAllArticles();
+    } catch (e) {
+      container.innerHTML = '<div class="loading">Failed to load articles. Have you synced PDFs?</div>';
+    }
+  }
+
+  function populateFilters() {
+    const issueEl = document.getElementById('issueFilter');
+    const catEl = document.getElementById('categoryFilter');
+    const issues = [...new Set(allArticlesData.map(a => a.issue).filter(Boolean))].sort();
+    const cats = [...new Set(allArticlesData.map(a => a.category).filter(Boolean))].sort();
+
+    issues.forEach(iss => {
+      const opt = document.createElement('option');
+      opt.value = iss;
+      opt.textContent = 'Issue ' + iss;
+      issueEl.appendChild(opt);
+    });
+    cats.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat;
+      opt.textContent = cat;
+      catEl.appendChild(opt);
+    });
+
+    issueEl.addEventListener('change', renderAllArticles);
+    catEl.addEventListener('change', renderAllArticles);
+  }
+
+  function renderAllArticles() {
+    const container = document.getElementById('allArticlesContainer');
+    const issueVal = document.getElementById('issueFilter').value;
+    const catVal = document.getElementById('categoryFilter').value;
+
+    let filtered = allArticlesData;
+    if (issueVal) filtered = filtered.filter(a => a.issue === issueVal);
+    if (catVal) filtered = filtered.filter(a => a.category === catVal);
+
+    document.getElementById('articleCount').textContent = filtered.length + ' article' + (filtered.length !== 1 ? 's' : '');
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div class="loading">No articles match the selected filters.</div>';
+      return;
+    }
+
+    let html = '<table class="schedule-table"><thead><tr>' +
+      '<th>Issue</th><th>Category</th><th>Title</th>' +
+      '<th class="hide-mobile">Author</th><th>Pages</th>' +
+      '</tr></thead><tbody>';
+
+    for (const a of filtered) {
+      html += '<tr>' +
+        '<td class="date-cell">' + escHtml(a.issue || '—') + '</td>' +
+        '<td>' + escHtml(a.category || '—') + '</td>' +
+        '<td class="title-cell">' + escHtml(a.title || 'Untitled') + '</td>' +
+        '<td class="hide-mobile">' + escHtml(a.author || '—') + '</td>' +
+        '<td>' + (a.start_page || '?') + '-' + (a.end_page || '?') + '</td>' +
+        '</tr>';
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
   }
 
   function escHtml(s) {
