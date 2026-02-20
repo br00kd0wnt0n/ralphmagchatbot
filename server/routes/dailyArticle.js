@@ -630,6 +630,7 @@ function renderAdminHtml() {
       <h1><span>Ralph</span> Daily Articles</h1>
       <div class="header-actions">
         <span class="user-label" id="userLabel"></span>
+        <button class="btn btn-secondary" id="syncBtn" onclick="syncPdfs()">Sync PDFs</button>
         <button class="btn btn-secondary" onclick="doLogout()">Logout</button>
       </div>
     </div>
@@ -769,6 +770,40 @@ function renderAdminHtml() {
       await loadTodayArticle();
     } catch (e) {
       if (btn) { btn.disabled = false; btn.textContent = 'Refresh'; }
+    }
+  };
+
+  window.syncPdfs = async function() {
+    const btn = document.getElementById('syncBtn');
+    const auth = getAuth();
+    if (!auth) { window.doLogout(); return; }
+
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+
+    try {
+      const res = await fetch('/api/sync-pdfs/run', {
+        method: 'POST',
+        headers: { 'Authorization': auth.header, 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (data.ok) {
+        const msg = data.files_processed > 0
+          ? 'Synced ' + data.files_processed + ' PDF(s). Reloading...'
+          : 'All PDFs already synced (' + data.files_skipped + ' skipped).';
+        btn.textContent = msg;
+        if (data.files_processed > 0) {
+          setTimeout(() => { loadTodayArticle(); loadSchedule(); btn.textContent = 'Sync PDFs'; btn.disabled = false; }, 1500);
+        } else {
+          setTimeout(() => { btn.textContent = 'Sync PDFs'; btn.disabled = false; }, 2000);
+        }
+      } else {
+        btn.textContent = 'Sync failed';
+        setTimeout(() => { btn.textContent = 'Sync PDFs'; btn.disabled = false; }, 2000);
+      }
+    } catch (e) {
+      btn.textContent = 'Sync error';
+      setTimeout(() => { btn.textContent = 'Sync PDFs'; btn.disabled = false; }, 2000);
     }
   };
 
