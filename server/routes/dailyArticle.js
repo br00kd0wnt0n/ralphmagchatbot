@@ -782,7 +782,7 @@ function renderAdminHtml() {
     btn.textContent = 'Syncing...';
 
     try {
-      const res = await fetch('/api/sync-pdfs/run', {
+      const res = await fetch('/api/sync-pdfs/run?force=true', {
         method: 'POST',
         headers: { 'Authorization': auth.header, 'Content-Type': 'application/json' }
       });

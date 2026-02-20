@@ -52,8 +52,9 @@ router.post('/run', async (req, res) => {
       const mtime = stat.mtime.toISOString();
       const id = hashString(rel);
 
+      const force = req.query.force === 'true' || req.body?.force === true;
       const existing = getDocument(id);
-      if (existing && existing.checksum === checksum) { skipped++; continue; }
+      if (!force && existing && existing.checksum === checksum) { skipped++; continue; }
 
       // Parse per-page text
       const pages = [];
