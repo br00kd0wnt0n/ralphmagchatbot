@@ -674,11 +674,11 @@ function renderAdminHtml() {
       <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
         <span>All Articles</span>
         <div style="display:flex;gap:8px;align-items:center;">
-          <select id="issueFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#F0F0F0;font-size:11px;font-family:inherit;">
-            <option value="">All Issues</option>
+          <select id="issueFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#1A1A1A;color:#F0F0F0;font-size:11px;font-family:inherit;-webkit-appearance:menulist;appearance:menulist;cursor:pointer;">
+            <option value="" style="background:#1A1A1A;color:#F0F0F0;">All Issues</option>
           </select>
-          <select id="categoryFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:rgba(255,255,255,0.06);color:#F0F0F0;font-size:11px;font-family:inherit;">
-            <option value="">All Categories</option>
+          <select id="categoryFilter" style="padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.15);background:#1A1A1A;color:#F0F0F0;font-size:11px;font-family:inherit;-webkit-appearance:menulist;appearance:menulist;cursor:pointer;">
+            <option value="" style="background:#1A1A1A;color:#F0F0F0;">All Categories</option>
           </select>
           <span id="articleCount" style="font-size:11px;color:#888;"></span>
         </div>
@@ -930,12 +930,16 @@ function renderAdminHtml() {
       const opt = document.createElement('option');
       opt.value = iss;
       opt.textContent = 'Issue ' + iss;
+      opt.style.background = '#1A1A1A';
+      opt.style.color = '#F0F0F0';
       issueEl.appendChild(opt);
     });
     cats.forEach(cat => {
       const opt = document.createElement('option');
       opt.value = cat;
       opt.textContent = cat;
+      opt.style.background = '#1A1A1A';
+      opt.style.color = '#F0F0F0';
       catEl.appendChild(opt);
     });
 
