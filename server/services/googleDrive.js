@@ -122,7 +122,8 @@ function parseMetaFromName(name) {
   // Heuristic: Issue_12_p34_Title by Author.ext
   const base = name.replace(/\.[^.]+$/, '');
   const meta = { issue: undefined, page: undefined, author: undefined, title: base };
-  const mIssue = base.match(/issue[_\-\s]?(\d+)/i);
+  // Match "Issue 3", "Issue_12", "No4", "No.5", "Magazine 1", "Magazine No7"
+  const mIssue = base.match(/(?:issue|no\.?)[_\-\s]?(\d+)/i) || base.match(/magazine[_\-\s]+(?:no\.?\s*)?(\d+)/i);
   if (mIssue) meta.issue = mIssue[1];
   const mPage = base.match(/p(age)?[_\-\s]?(\d+)/i);
   if (mPage) meta.page = mPage[2] || mPage[1];
